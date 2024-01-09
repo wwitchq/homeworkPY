@@ -1,60 +1,32 @@
 """
-Создайте базу данных фильмов состоящая из столбцов: id,название, год выпуска, жанр, рейтинг.
-Создайте функции для добавления фильма в базу, получения всех фильмов, получение фильма по определенному году, обновления рейтинга, удаления фильма.
+Соберите данные с чартов яндекс музыки https://music.yandex.ru/chart
+Внимательно изучите источник, посмотрите как именно на сайт приходит информация.
+Сохраните данные в json файл в формате:
+{
+место в чарте: (исполнитель,трек)
+}
 """
-import sqlite3
+import requests
+from bs4 import BeautifulSoup
 
-# Создаем базу данных и таблицу для фильмов
-def create_movie_database():
-    connection = sqlite3.connect('movies.db')
-    cursor = connection.cursor()
-    cursor.execute('''CREATE TABLE IF NOT EXISTS movies 
-                      (id INTEGER PRIMARY KEY AUTOINCREMENT, 
-                      title TEXT, 
-                      year INTEGER, 
-                      genre TEXT, 
-                      rating REAL)''')
-    connection.commit()
-    connection.close()
+ya_chart_page = requests.get(url='https://music.yandex.ru/chart')
+ya_page_html = 'chart.html'
 
-# Добавление фильма в базу
-def add_movie(title, year, genre, rating):
-    connection = sqlite3.connect('movies.db')
-    cursor = connection.cursor()
-    cursor.execute("INSERT INTO movies (title, year, genre, rating) VALUES (?, ?, ?, ?)", (title, year, genre, rating))
-    connection.commit()
-    connection.close()
+data = {}
+# Если html файл скачан успешно, то не раскоменчиваем
+# with open(ya_page_html,'wb') as fl:
+#     fl.write(ya_chart_page.content)
 
-# Получение всех фильмов
-def get_all_movies():
-    connection = sqlite3.connect('movies.db')
-    cursor = connection.cursor()
-    cursor.execute("SELECT * FROM movies")
-    movies = cursor.fetchall()
-    connection.close()
-    return movies
+with open(ya_page_html, 'r', encoding='utf-8') as fl:  # r - read, encoding = utf-8 позволяет читать русские буквы
+    soup = BeautifulSoup(fl.read(), 'lxml')
+    all_tracks: list[BeautifulSoup] = soup.find_all("div", class_="d-track")
+    for pos, track in enumerate(all_tracks):
+        title = track.find('div', class_='d-track__name').text.strip().replace('    ', '').replace('\n', ' ')
+        author = track.find('div', class_='d-track__meta').text.strip().replace(' ', '').replace('\n', ' ')
+        time = track.find('span', class_='typo-track').text
+        data[pos + 1] = (title, author, time)
 
-# Получение фильма по определенному году
-def get_movie_by_year(year):
-    connection = sqlite3.connect('movies.db')
-    cursor = connection.cursor()
-    cursor.execute("SELECT * FROM movies WHERE year=?", (year,))
-    movies = cursor.fetchall()
-    connection.close()
-    return movies
+import json
 
-# Обновление рейтинга фильма
-def update_rating(movie_id, new_rating):
-    connection = sqlite3.connect('movies.db')
-    cursor = connection.cursor()
-    cursor.execute("UPDATE movies SET rating=? WHERE id=?", (new_rating, movie_id))
-    connection.commit()
-    connection.close()
-
-# Удаление фильма
-def delete_movie(movie_id):
-    connection = sqlite3.connect('movies.db')
-    cursor = connection.cursor()
-    cursor.execute("DELETE FROM movies WHERE id=?", (movie_id,))
-    connection.commit()
-    connection.close()
+with open('data.json', 'w') as fl:  # w - write
+    json.dump(data, fl, ensure_ascii=False)
