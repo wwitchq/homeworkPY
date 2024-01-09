@@ -1,22 +1,35 @@
 """
-Создайте функцию в демоне потока которая каждые 3 секунды будет писать "Вводите быстрее".
-В основной части программы запросите ввод кода от бомбы и если код неверный выведите: "Вы взорвались", если верный - "Бомба разминирована"
+Создайте функцию которая из файла Names.txt берет имена, превращает его в путь до файла и помещает в очередь.
+Создайте функцию которая создает txt файл  по пути из очереди.
+Запустите все в разных потоках.
 """
-import threading
-import time
 
-def demon_function():
-    while True:
-        time.sleep(3)
-        print("Вводите быстрее")
+import concurrent.futures
+import queue
+import os
 
-demon_thread = threading.Thread(target=demon_function)
-demon_thread.daemon = True
-demon_thread.start()
 
-bomb_code = input("Введите код от бомбы: ")
+def add_file_paths_to_queue(file_path, queue):
+    with open(file_path, 'r') as file:
+        names = file.readlines()
+        for name in names:
+            cleaned_name = name.strip()
+            path = os.path.join('generated_files', cleaned_name + '.txt')
+            queue.put(path)
 
-if bomb_code != "12345":
-    print("Вы взорвались")
-else:
-    print("Бомба разминирована")
+
+def create_files_from_queue(queue):
+    while not queue.empty():
+        file_path = queue.get()
+        with open(file_path, 'w') as file:
+            file.write("This file was generated for: " + os.path.basename(file_path))
+
+
+file_paths_queue = queue.Queue()
+
+
+add_file_paths_to_queue('Names.txt', file_paths_queue)
+
+
+with concurrent.futures.ThreadPoolExecutor() as executor:
+    executor.submit(create_files_from_queue, file_paths_queue)

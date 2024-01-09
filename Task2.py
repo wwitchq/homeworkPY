@@ -1,21 +1,23 @@
 """
-Создайте функцию напоминалку в отдельном потоке от основном программы.
-Функция должна запрашивать о чем напомнить и через сколько секунд.
-В основной части программы запустите поток с функцией и выполните задержку в 10 секунд.
-После выполнения программа должна написать "программа завершается"
+Создайте функцию которая выводит на экран все делители числа.
+Создайте очередь и добавьте в нее числа.
+Создайте пул потоков и запустите в пуле функцию с очередью.
 """
-import threading
-import time
+import concurrent.futures
+import queue
 
-def reminder():
-    remind_text = input("Чем вас напомнить? ")
-    delay = int(input("Через сколько секунд напомнить? "))
-    time.sleep(delay)
-    print(f"Напоминание: {remind_text}")
 
-reminder_thread = threading.Thread(target=reminder)
-reminder_thread.start()
+def print_divisors(number):
+    divisors = [x for x in range(1, number + 1) if number % x == 0]
+    print(f"Делители числа {number}: {divisors}")
 
-time.sleep(10)
 
-print("Программа завершается")
+numbers_queue = queue.Queue()
+for i in range(1, 21):
+    numbers_queue.put(i)
+
+
+with concurrent.futures.ThreadPoolExecutor() as executor:
+    while not numbers_queue.empty():
+        number = numbers_queue.get()
+        executor.submit(print_divisors, number)
